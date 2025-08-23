@@ -1,4 +1,4 @@
-local balance = ulx.command("Cashflow", "ulx balance", function(ply, target)
+local function balanceFunc(ply, target)
 	local items = ply == target and {} or { target }
 	for id, info in SortedPairsByMemberValue(Cashflow.TYPEINFO, "ORDER") do
 		if info.HIDE_FROM_BALANCE then continue end
@@ -12,17 +12,85 @@ local balance = ulx.command("Cashflow", "ulx balance", function(ply, target)
 	local you = ply == target and "You have" or "#T has"
 	local itemCount = ply == target and #items or #items - 1
 
-	if itemCount == 1 then
-		ulx.fancyLogAdmin(ply, { ply }, string.format("%s #s.", you), unpack(items))
+	local str
+	if itemCount == 0 then
+		str = string.format("%s nothing.", you)
+	elseif itemCount == 1 then
+		str = string.format("%s #s.", you)
 	elseif itemCount == 2 then
-		ulx.fancyLogAdmin(ply, { ply }, string.format("%s #s and #s.", you), unpack(items))
+		str = string.format("%s #s and #s.", you)
 	else
-		ulx.fancyLogAdmin(ply, { ply }, string.format("%s %sand #s.", you, string.rep("#s, ", itemCount - 1)), unpack(items))
+		str = string.format("%s %sand #s.", you, string.rep("#s, ", itemCount - 1))
 	end
-end, "!balance", true)
+
+	ulx.fancyLogAdmin(ply, { ply }, str, unpack(items))
+end
+
+local balance = ulx.command("Cashflow", "ulx balance", balanceFunc, "!balance", true)
 balance:addParam({ type = ULib.cmds.PlayerArg, ULib.cmds.ignoreCanTarget })
 balance:defaultAccess(ULib.ACCESS_ALL)
-balance:help("See how much money you have.")
+balance:help("See how much money a player has.")
+
+local balanceid = ulx.command("Cashflow", "ulx balanceid", function(ply, targetID)
+	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < 5 then
+		ULib.tsayError(ply, "You're executing this command too fast!", true)
+		return
+	end
+	ply.Cashflow_OfflineQuery = CurTime()
+
+	local target = player.GetBySteamID(targetID)
+	if IsValid(target) then
+		balanceFunc(ply, target)
+		return
+	end
+
+	Cashflow._FetchAllCash(targetID, function(data)
+		table.sort(data, function(a, b)
+			if not a.cashType or not b.cashType then return true end
+
+			local aType = Cashflow.TYPEINFO[tonumber(a.cashType)]
+			local bType = Cashflow.TYPEINFO[tonumber(b.cashType)]
+
+			if not aType or not bType then return true end
+
+			local aOrder = aType.ORDER or 0
+			local bOrder = bType.ORDER or 0
+
+			return aOrder < bOrder
+		end)
+
+		local items = {}
+		for _, row in ipairs(data) do
+			local amount = tonumber(row.amount)
+			local cashtype = tonumber(row.cashType)
+			local info = Cashflow.TYPEINFO[cashtype]
+
+			if not info then continue end
+			if info.HIDE_FROM_BALANCE then continue end
+			if amount <= 0 and not info.SHOW_WHEN_ZERO then continue end
+
+			table.insert(items, Cashflow.PrettifyCash(cashtype, amount, true))
+		end
+
+		local itemCount = #items
+
+		local str
+		if itemCount == 0 then
+			str = "#s has nothing."
+		elseif itemCount == 1 then
+			str = "#s has #s."
+		elseif itemCount == 2 then
+			str = "#s has #s and #s."
+		else
+			str = string.format("#s has %sand #s.", string.rep("#s, ", itemCount - 1))
+		end
+
+		ulx.fancyLogAdmin(ply, { ply }, str, targetID, unpack(items))
+	end)
+end, "!balanceid", true)
+balanceid:addParam({ type = ULib.cmds.StringArg, hint = "steamID" })
+balanceid:defaultAccess(ULib.ACCESS_ALL)
+balanceid:help("See how much money a potentially ofline player has.")
 
 local function findType(typeStr)
 	local toFind = string.upper(string.Trim(typeStr))

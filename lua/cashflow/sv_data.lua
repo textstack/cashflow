@@ -29,7 +29,7 @@ function Cashflow.SetCash(ply, cashType, amount, _source, noPush)
 
 	if noPush then return end
 
-	Cashflow._PushCash(ply, cashType, amount)
+	Cashflow._PushCash(ply:SteamID(), cashType, amount)
 end
 
 --- set the cash of an offline player
@@ -112,10 +112,8 @@ end
 
 --- get all of a player's cash info from the database
 -- internal
-function Cashflow._FetchAllCash(ply, callback)
-	if not IsValid(ply) then return end
-
-	local data = sql.Query(string.format("SELECT * FROM cashflow WHERE steamID = %s;", sql.SQLStr(ply:SteamID())))
+function Cashflow._FetchAllCash(steamID, callback)
+	local data = sql.Query(string.format("SELECT * FROM cashflow WHERE steamID = %s;", sql.SQLStr(steamID)))
 
 	if callback then
 		callback(data or {})
@@ -126,22 +124,8 @@ local pushCash = {}
 
 --- push cash data into the database
 -- internal
-function Cashflow._PushCash(plyOrSteamID, cashType, amount)
-	if type(plyOrSteamID) == "string" then
-		pushCash[plyOrSteamID .. "_" .. cashType] = {
-			sql.SQLStr(plyOrSteamID),
-			cashType,
-			amount
-		}
-	else
-		if not IsValid(plyOrSteamID) then return end
-
-		pushCash[plyOrSteamID:SteamID() .. "_" .. cashType] = {
-			sql.SQLStr(plyOrSteamID:SteamID()),
-			cashType,
-			amount or Cashflow.GetCash(plyOrSteamID, cashType)
-		}
-	end
+function Cashflow._PushCash(steamID, cashType, amount)
+	pushCash[steamID .. "_" .. cashType] = { sql.SQLStr(steamID), cashType, amount }
 
 	-- prevent the push from being hung up by spams
 	if timer.Exists("cashflow_pushcash") then return end
@@ -177,7 +161,7 @@ hook.Add("player_activate", "Cashflow_Initialize", function(plyData)
 		end
 	end
 
-	Cashflow._FetchAllCash(ply, function(data)
+	Cashflow._FetchAllCash(ply:SteamID(), function(data)
 		if not ply:IsValid() then return end
 
 		for _, row in ipairs(data) do
