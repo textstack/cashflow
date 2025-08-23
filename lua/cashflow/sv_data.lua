@@ -32,14 +32,20 @@ function Cashflow.SetCash(ply, cashType, amount, _source, noPush)
 	Cashflow._PushCash(ply, cashType, amount)
 end
 
+--- set the cash of an offline player
+-- warning! requires an sql query every time you use it
+-- returns whether operation was successful and a potential error message
 function Cashflow.SetCashOffline(steamID, cashType, amount, _source)
 	local ply = player.GetBySteamID(steamID)
-	if ply then
+	if IsValid(ply) then
 		Cashflow.SetCash(ply, cashType, amount, _source)
-		return
+		return true
 	end
 
-	if not Cashflow.TYPESLOOKUP[cashType] then return end
+	if not Cashflow.TYPESLOOKUP[cashType] then return false, "Not a valid currency type!" end
+
+	local q = sql.QueryValue(string.format("SELECT amount FROM cashflow WHERE steamID = %s LIMIT 1;", sql.SQLStr(steamID)))
+	if not q then return false, "This player needs to be on our database first!" end
 
 	_source = _source or "direct"
 
@@ -51,12 +57,48 @@ function Cashflow.SetCashOffline(steamID, cashType, amount, _source)
 	amount = math.floor(math.Clamp(amount, 0, Cashflow.MAX_AMOUNT))
 
 	Cashflow._PushCash(steamID, cashType, amount)
+
+	return true
 end
 
 --- add cash to a player
 function Cashflow.AddCash(ply, cashType, amount, _source)
 	_source = _source or "direct_add"
 	Cashflow.SetCash(ply, cashType, Cashflow.GetCash(ply, cashType) + amount, _source)
+end
+
+--- add cash to an offline player
+-- warning! requires an sql query every time you use it
+-- returns whether operation was successful and a potential error message
+function Cashflow.AddCashOffline(steamID, cashType, amount, _source)
+	local ply = player.GetBySteamID(steamID)
+	if IsValid(ply) then
+		Cashflow.AddCash(ply, cashType, amount, _source)
+		return true
+	end
+
+	if not Cashflow.TYPESLOOKUP[cashType] then return false, "Not a valid currency type!" end
+
+	local curCash = sql.QueryValue(string.format("SELECT amount FROM cashflow WHERE id = %s LIMIT 1;", sql.SQLStr(steamID .. "_" .. cashType)))
+	if not curCash then
+		local q = sql.QueryValue(string.format("SELECT amount FROM cashflow WHERE steamID = %s LIMIT 1;", sql.SQLStr(steamID)))
+		if not q then return false, "This player needs to be on our database first!" end
+
+		curCash = 0
+	end
+
+	amount = curCash + amount
+	_source = _source or "direct_add"
+
+	local result = hook.Run("Cashflow_SetCashOffline", steamID, cashType, amount, _source)
+	if type(result) == "number" then
+		amount = result
+	end
+
+	amount = math.floor(math.Clamp(amount, 0, Cashflow.MAX_AMOUNT))
+
+	Cashflow._PushCash(steamID, cashType, amount)
+	return true
 end
 
 --- make a purchase and return whether the purchase was successful

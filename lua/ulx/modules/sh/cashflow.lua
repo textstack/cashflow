@@ -38,7 +38,7 @@ local function findType(typeStr)
 	return found
 end
 
-local givemoney = ulx.command("Cashflow", "ulx givemoney", function(ply, target, amount, typeStr)
+local function givemoneyFunc(ply, target, amount, typeStr)
 	if not target.Cashflow_Initialized then
 		ULib.tsayError(ply, "This player hasn't initialized yet!", true)
 		return
@@ -69,14 +69,69 @@ local givemoney = ulx.command("Cashflow", "ulx givemoney", function(ply, target,
 	local amtStr = Cashflow.PrettifyCash(cashType, amount, true)
 	ulx.fancyLogAdmin(target, { target }, "You received #s from #T.", amtStr, ply)
 	ulx.fancyLogAdmin(ply, { ply }, "You gave #s to #T.", amtStr, target)
-end, "!givemoney", true)
+end
+
+local givemoney = ulx.command("Cashflow", "ulx givemoney", givemoneyFunc, "!givemoney", true)
 givemoney:addParam({ type = ULib.cmds.PlayerArg, target = "!^", ULib.cmds.ignoreCanTarget })
 givemoney:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount" })
 givemoney:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
 givemoney:defaultAccess(ULib.ACCESS_ALL)
 givemoney:help("Give money to another player.")
 
-local bounty = ulx.command("Cashflow", "ulx bounty", function(ply, target, amount)
+local givemoneyid = ulx.command("Cashflow", "ulx givemoneyid", function(ply, targetID, amount, typeStr)
+	if targetID == ply:SteamID() then
+		ULib.tsayError(ply, "You can't target yourself!", true)
+		return
+	end
+
+	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < 5 then
+		ULib.tsayError(ply, "You're executing this command too fast!", true)
+		return
+	end
+	ply.Cashflow_OfflineQuery = CurTime()
+
+	local target = player.GetBySteamID(targetID)
+	if IsValid(target) then
+		givemoneyFunc(ply, target, amount, typeStr)
+		return
+	end
+
+	local cashType = Cashflow.DEFAULT_TYPE
+	if typeStr and string.Trim(typeStr) ~= "" then
+		cashType = findType(typeStr)
+
+		if type(cashType) == "string" then
+			ULib.tsayError(ply, cashType, true)
+			return
+		end
+	end
+
+	if Cashflow.TYPEINFO[cashType].CANNOT_BE_GIVEN then
+		ULib.tsayError(ply, "You can't give this!", true)
+		return
+	end
+
+	if not Cashflow.Purchase(ply, cashType, amount) then
+		ULib.tsayError(ply, string.format("You don't have enough %s!", Cashflow.TYPEINFO[cashType].NAME), true)
+		return
+	end
+
+	local success, err = Cashflow.AddCashOffline(targetID, cashType, amount, "givemoney")
+	if not success then
+		ULib.tsayError(ply, err, true)
+		return
+	end
+
+	local amtStr = Cashflow.PrettifyCash(cashType, amount, true)
+	ulx.fancyLogAdmin(ply, { ply }, "You gave #s to #s.", amtStr, targetID)
+end, "!givemoneyid", true)
+givemoneyid:addParam({ type = ULib.cmds.StringArg, hint = "steamID" })
+givemoneyid:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount" })
+givemoneyid:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
+givemoneyid:defaultAccess(ULib.ACCESS_ALL)
+givemoneyid:help("Give money to another player who may be offline.")
+
+local function bountyFunc(ply, target, amount)
 	if not target.Cashflow_Initialized then
 		ULib.tsayError(ply, "This player hasn't initialized yet!", true)
 		return
@@ -90,11 +145,44 @@ local bounty = ulx.command("Cashflow", "ulx bounty", function(ply, target, amoun
 	Cashflow.AddCash(target, Cashflow.TYPES.BOUNTY, amount, "bounty")
 
 	ulx.fancyLogAdmin(ply, "#A placed #s on #T.", Cashflow.PrettifyCash(Cashflow.TYPES.BOUNTY, amount, true), target)
-end, "!bounty", true)
+end
+
+local bounty = ulx.command("Cashflow", "ulx bounty", bountyFunc, "!bounty", true)
 bounty:addParam({ type = ULib.cmds.PlayerArg, ULib.cmds.ignoreCanTarget })
 bounty:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount" })
 bounty:defaultAccess(ULib.ACCESS_ALL)
-bounty:help("Give money to another player.")
+bounty:help("Place a bounty on a player.")
+
+local bountyid = ulx.command("Cashflow", "ulx bountyid", function(ply, targetID, amount)
+	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < 5 then
+		ULib.tsayError(ply, "You're executing this command too fast!", true)
+		return
+	end
+	ply.Cashflow_OfflineQuery = CurTime()
+
+	local target = player.GetBySteamID(targetID)
+	if IsValid(target) then
+		bountyFunc(ply, target, amount)
+		return
+	end
+
+	if not Cashflow.Purchase(ply, Cashflow.DEFAULT_TYPE, amount) then
+		ULib.tsayError(ply, string.format("You don't have enough %s!", Cashflow.TYPEINFO[Cashflow.DEFAULT_TYPE].NAME), true)
+		return
+	end
+
+	local success, err = Cashflow.AddCashOffline(targetID, Cashflow.TYPES.BOUNTY, amount, "bounty")
+	if not success then
+		ULib.tsayError(ply, err, true)
+		return
+	end
+
+	ulx.fancyLogAdmin(ply, "#A placed #s on #s.", Cashflow.PrettifyCash(Cashflow.TYPES.BOUNTY, amount, true), targetID)
+end, "!bountyid", true)
+bountyid:addParam({ type = ULib.cmds.StringArg, hint = "steamID" })
+bountyid:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount" })
+bountyid:defaultAccess(ULib.ACCESS_ALL)
+bountyid:help("Place a bounty on a player who may be offline.")
 
 local setmoney = ulx.command("Cashflow", "ulx setmoney", function(ply, target, amount, typeStr)
 	if not target.Cashflow_Initialized then
