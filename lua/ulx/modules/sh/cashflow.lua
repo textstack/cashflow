@@ -111,7 +111,8 @@ local givemoneyid = ulx.command("Cashflow", "ulx givemoneyid", function(ply, tar
 		return
 	end
 
-	if not Cashflow.Purchase(ply, cashType, amount) then
+	local newCash = Cashflow.GetCash(ply, cashType) - amount
+	if newCash < 0 then
 		ULib.tsayError(ply, string.format("You don't have enough %s!", Cashflow.TYPEINFO[cashType].NAME), true)
 		return
 	end
@@ -121,6 +122,8 @@ local givemoneyid = ulx.command("Cashflow", "ulx givemoneyid", function(ply, tar
 		ULib.tsayError(ply, err, true)
 		return
 	end
+
+	Cashflow.SetCash(ply, cashType, newCash, "purchase")
 
 	local amtStr = Cashflow.PrettifyCash(cashType, amount, true)
 	ulx.fancyLogAdmin(ply, { ply }, "You gave #s to #s.", amtStr, targetID)
@@ -166,7 +169,8 @@ local bountyid = ulx.command("Cashflow", "ulx bountyid", function(ply, targetID,
 		return
 	end
 
-	if not Cashflow.Purchase(ply, Cashflow.DEFAULT_TYPE, amount) then
+	local newCash = Cashflow.GetCash(ply, Cashflow.DEFAULT_TYPE) - amount
+	if newCash < 0 then
 		ULib.tsayError(ply, string.format("You don't have enough %s!", Cashflow.TYPEINFO[Cashflow.DEFAULT_TYPE].NAME), true)
 		return
 	end
@@ -176,6 +180,8 @@ local bountyid = ulx.command("Cashflow", "ulx bountyid", function(ply, targetID,
 		ULib.tsayError(ply, err, true)
 		return
 	end
+
+	Cashflow.SetCash(ply, Cashflow.DEFAULT_TYPE, newCash, "purchase")
 
 	ulx.fancyLogAdmin(ply, "#A placed #s on #s.", Cashflow.PrettifyCash(Cashflow.TYPES.BOUNTY, amount, true), targetID)
 end, "!bountyid", true)
