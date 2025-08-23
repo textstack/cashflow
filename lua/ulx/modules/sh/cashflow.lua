@@ -3,10 +3,10 @@ local balance = ulx.command("Cashflow", "ulx balance", function(ply, target)
 	for id, info in SortedPairsByMemberValue(Cashflow.TYPEINFO, "ORDER") do
 		if info.HIDE_FROM_BALANCE then continue end
 
-		local amount = Cashflow.Data.GetCash(target, id)
+		local amount = Cashflow.GetCash(target, id)
 		if amount <= 0 and not info.SHOW_WHEN_ZERO then continue end
 
-		table.insert(items, Cashflow.Util.PrettifyCash(id, amount, true))
+		table.insert(items, Cashflow.PrettifyCash(id, amount, true))
 	end
 
 	local you = ply == target and "You have" or "#T has"
@@ -20,7 +20,7 @@ local balance = ulx.command("Cashflow", "ulx balance", function(ply, target)
 		ulx.fancyLogAdmin(ply, { ply }, string.format("%s %sand #s.", you, string.rep("#s, ", itemCount - 1)), unpack(items))
 	end
 end, "!balance", true)
-balance:addParam({ type = ULib.cmds.PlayerArg })
+balance:addParam({ type = ULib.cmds.PlayerArg, ULib.cmds.ignoreCanTarget })
 balance:defaultAccess(ULib.ACCESS_ALL)
 balance:help("See how much money you have.")
 
@@ -59,18 +59,18 @@ local givemoney = ulx.command("Cashflow", "ulx givemoney", function(ply, target,
 		return
 	end
 
-	if not Cashflow.Data.Purchase(ply, cashType, amount) then
+	if not Cashflow.Purchase(ply, cashType, amount) then
 		ULib.tsayError(ply, string.format("You don't have enough %s!", Cashflow.TYPEINFO[cashType].NAME), true)
 		return
 	end
 
-	Cashflow.Data.AddCash(target, cashType, amount, "givemoney")
+	Cashflow.AddCash(target, cashType, amount, "givemoney")
 
-	local amtStr = Cashflow.Util.PrettifyCash(cashType, amount, true)
+	local amtStr = Cashflow.PrettifyCash(cashType, amount, true)
 	ulx.fancyLogAdmin(target, { target }, "You received #s from #T.", amtStr, ply)
 	ulx.fancyLogAdmin(ply, { ply }, "You gave #s to #T.", amtStr, target)
 end, "!givemoney", true)
-givemoney:addParam({ type = ULib.cmds.PlayerArg, target = "!^" })
+givemoney:addParam({ type = ULib.cmds.PlayerArg, target = "!^", ULib.cmds.ignoreCanTarget })
 givemoney:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount" })
 givemoney:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
 givemoney:defaultAccess(ULib.ACCESS_ALL)
@@ -82,16 +82,16 @@ local bounty = ulx.command("Cashflow", "ulx bounty", function(ply, target, amoun
 		return
 	end
 
-	if not Cashflow.Data.Purchase(ply, Cashflow.DEFAULT_TYPE, amount) then
+	if not Cashflow.Purchase(ply, Cashflow.DEFAULT_TYPE, amount) then
 		ULib.tsayError(ply, string.format("You don't have enough %s!", Cashflow.TYPEINFO[Cashflow.DEFAULT_TYPE].NAME), true)
 		return
 	end
 
-	Cashflow.Data.AddCash(target, Cashflow.TYPES.BOUNTY, amount, "bounty")
+	Cashflow.AddCash(target, Cashflow.TYPES.BOUNTY, amount, "bounty")
 
-	ulx.fancyLogAdmin(ply, "#A placed #s on #T.", Cashflow.Util.PrettifyCash(Cashflow.TYPES.BOUNTY, amount, true), target)
+	ulx.fancyLogAdmin(ply, "#A placed #s on #T.", Cashflow.PrettifyCash(Cashflow.TYPES.BOUNTY, amount, true), target)
 end, "!bounty", true)
-bounty:addParam({ type = ULib.cmds.PlayerArg })
+bounty:addParam({ type = ULib.cmds.PlayerArg, ULib.cmds.ignoreCanTarget })
 bounty:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount" })
 bounty:defaultAccess(ULib.ACCESS_ALL)
 bounty:help("Give money to another player.")
@@ -112,7 +112,7 @@ local setmoney = ulx.command("Cashflow", "ulx setmoney", function(ply, target, a
 		end
 	end
 
-	Cashflow.Data.SetCash(target, cashType, amount, "setmoney")
+	Cashflow.SetCash(target, cashType, amount, "setmoney")
 	ulx.fancyLogAdmin(ply, "#A set the #s of #T.", Cashflow.TYPEINFO[cashType].NAME, target)
 end, "!setmoney", true)
 setmoney:addParam({ type = ULib.cmds.PlayerArg })
@@ -137,7 +137,7 @@ local addmoney = ulx.command("Cashflow", "ulx addmoney", function(ply, target, a
 		end
 	end
 
-	Cashflow.Data.AddCash(target, cashType, amount, "addmoney")
+	Cashflow.AddCash(target, cashType, amount, "addmoney")
 
 	if amount >= 0 then
 		ulx.fancyLogAdmin(ply, "#A added #s to #T.", Cashflow.TYPEINFO[cashType].NAME, target)

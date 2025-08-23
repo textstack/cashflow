@@ -13,11 +13,11 @@ hook.Add("HUDPaint", "Cashflow_HUD", function()
 	for id, info in SortedPairsByMemberValue(Cashflow.TYPEINFO, "ORDER") do
 		if info.HIDE_FROM_HUD then continue end
 
-		local amount = Cashflow.Data.GetCash(ply, id)
+		local amount = Cashflow.GetCash(ply, id)
 		if amount <= 0 and not info.SHOW_WHEN_ZERO then continue end
 
 		draw.TextShadow({
-			text = Cashflow.Util.PrettifyCash(id, amount),
+			text = Cashflow.PrettifyCash(id, amount),
 			font = "CashflowHUD",
 			pos = { 0, y },
 			color = info.COLOR or color_white
@@ -50,13 +50,14 @@ hook.Add("HUDPaint", "Cashflow_HUD", function()
 	y = y + 30
 	y = y + 2 * h + 12
 
+	-- not the best to do sortedpairs twice for the same table...
 	for id, info in SortedPairsByMemberValue(Cashflow.TYPEINFO, "ORDER") do
 		if not info.SHOW_ON_TARGETID then continue end
 
-		local amount = Cashflow.Data.GetCash(trace.Entity, id)
+		local amount = Cashflow.GetCash(trace.Entity, id)
 		if amount <= 0 and not info.SHOW_WHEN_ZERO then continue end
 
-		local str = Cashflow.Util.PrettifyCash(id, amount)
+		local str = Cashflow.PrettifyCash(id, amount)
 
 		draw.SimpleText(str, font, x + 1, y + 1, dark1, TEXT_ALIGN_CENTER)
 		draw.SimpleText(str, font, x + 2, y + 2, dark2, TEXT_ALIGN_CENTER)

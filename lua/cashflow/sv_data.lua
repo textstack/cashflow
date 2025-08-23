@@ -2,10 +2,8 @@ util.AddNetworkString("cashflow")
 
 sql.Query("CREATE TABLE IF NOT EXISTS cashflow ( id TEXT PRIMARY KEY ON CONFLICT REPLACE, steamID TEXT, cashType INTEGER, amount INTEGER );")
 
-Cashflow.Data = Cashflow.Data or {}
-
 --- set how much cash a player has
-function Cashflow.Data.SetCash(ply, cashType, amount, _source, noPush)
+function Cashflow.SetCash(ply, cashType, amount, _source, noPush)
 	if not IsValid(ply) or not ply:IsPlayer() then return end
 	if not Cashflow.TYPESLOOKUP[cashType] then return end
 	if not noPush and not ply.Cashflow_Initialized then return end
@@ -31,13 +29,13 @@ function Cashflow.Data.SetCash(ply, cashType, amount, _source, noPush)
 
 	if noPush then return end
 
-	Cashflow.Data.PushCash(ply, cashType, amount)
+	Cashflow._PushCash(ply, cashType, amount)
 end
 
-function Cashflow.Data.SetCashOffline(steamID, cashType, amount, _source)
+function Cashflow.SetCashOffline(steamID, cashType, amount, _source)
 	local ply = player.GetBySteamID(steamID)
 	if ply then
-		Cashflow.Data.SetCash(ply, cashType, amount, _source)
+		Cashflow.SetCash(ply, cashType, amount, _source)
 		return
 	end
 
@@ -52,26 +50,27 @@ function Cashflow.Data.SetCashOffline(steamID, cashType, amount, _source)
 
 	amount = math.floor(math.Clamp(amount, 0, Cashflow.MAX_AMOUNT))
 
-	Cashflow.Data.PushCash(steamID, cashType, amount)
+	Cashflow._PushCash(steamID, cashType, amount)
 end
 
 --- add cash to a player
-function Cashflow.Data.AddCash(ply, cashType, amount, _source)
+function Cashflow.AddCash(ply, cashType, amount, _source)
 	_source = _source or "direct_add"
-	Cashflow.Data.SetCash(ply, cashType, Cashflow.Data.GetCash(ply, cashType) + amount, _source)
+	Cashflow.SetCash(ply, cashType, Cashflow.GetCash(ply, cashType) + amount, _source)
 end
 
 --- make a purchase and return whether the purchase was successful
-function Cashflow.Data.Purchase(ply, cashType, price)
-	local newCash = Cashflow.Data.GetCash(ply, cashType) - price
+function Cashflow.Purchase(ply, cashType, price)
+	local newCash = Cashflow.GetCash(ply, cashType) - price
 	if newCash < 0 then return false end
 
-	Cashflow.Data.SetCash(ply, cashType, newCash, "purchase")
+	Cashflow.SetCash(ply, cashType, newCash, "purchase")
 	return true
 end
 
 --- get all of a player's cash info from the database
-function Cashflow.Data.FetchAllCash(ply, callback)
+-- internal
+function Cashflow._FetchAllCash(ply, callback)
 	if not IsValid(ply) then return end
 
 	local data = sql.Query(string.format("SELECT * FROM cashflow WHERE steamID = %s;", sql.SQLStr(ply:SteamID())))
@@ -84,8 +83,8 @@ end
 local pushCash = {}
 
 --- push cash data into the database
--- amount is only needed if supplying a steamid
-function Cashflow.Data.PushCash(plyOrSteamID, cashType, amount)
+-- internal
+function Cashflow._PushCash(plyOrSteamID, cashType, amount)
 	if type(plyOrSteamID) == "string" then
 		pushCash[plyOrSteamID .. "_" .. cashType] = {
 			sql.SQLStr(plyOrSteamID),
@@ -98,7 +97,7 @@ function Cashflow.Data.PushCash(plyOrSteamID, cashType, amount)
 		pushCash[plyOrSteamID:SteamID() .. "_" .. cashType] = {
 			sql.SQLStr(plyOrSteamID:SteamID()),
 			cashType,
-			amount or Cashflow.Data.GetCash(plyOrSteamID, cashType)
+			amount or Cashflow.GetCash(plyOrSteamID, cashType)
 		}
 	end
 
@@ -136,11 +135,11 @@ hook.Add("player_activate", "Cashflow_Initialize", function(plyData)
 		end
 	end
 
-	Cashflow.Data.FetchAllCash(ply, function(data)
+	Cashflow._FetchAllCash(ply, function(data)
 		if not ply:IsValid() then return end
 
 		for _, row in ipairs(data) do
-			Cashflow.Data.SetCash(ply, tonumber(row.cashType), tonumber(row.amount), "initialize", true)
+			Cashflow.SetCash(ply, tonumber(row.cashType), tonumber(row.amount), "initialize", true)
 		end
 
 		ply.Cashflow_Initialized = true

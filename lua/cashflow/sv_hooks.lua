@@ -5,14 +5,14 @@ hook.Add("PlayerDeath", "Cashflow_Bounty", function(ply, _, attacker)
 	if ply == attacker then return end
 	if not IsValid(attacker) or not attacker:IsPlayer() then return end
 
-	local bounty = Cashflow.Data.GetCash(ply, Cashflow.TYPES.BOUNTY)
+	local bounty = Cashflow.GetCash(ply, Cashflow.TYPES.BOUNTY)
 	if bounty <= 0 then return end
 
-	Cashflow.Data.AddCash(attacker, Cashflow.DEFAULT_TYPE, bounty)
-	Cashflow.Data.SetCash(ply, Cashflow.TYPES.BOUNTY, 0)
+	Cashflow.AddCash(attacker, Cashflow.DEFAULT_TYPE, bounty)
+	Cashflow.SetCash(ply, Cashflow.TYPES.BOUNTY, 0)
 
 	if ulx then
-		ulx.fancyLogAdmin(attacker, "#A received #s for killing #T.", Cashflow.Util.PrettifyCash(Cashflow.DEFAULT_TYPE, bounty, true), ply)
+		ulx.fancyLogAdmin(attacker, "#A received #s for killing #T.", Cashflow.PrettifyCash(Cashflow.DEFAULT_TYPE, bounty, true), ply)
 	end
 end)
 
@@ -21,7 +21,7 @@ function giveIncome()
 	local amount = cvarIncomeAmount:GetInt()
 
 	for _, ply in player.Iterator() do
-		Cashflow.Data.AddCash(ply, Cashflow.DEFAULT_TYPE, amount, "income")
+		Cashflow.AddCash(ply, Cashflow.DEFAULT_TYPE, amount, "income")
 	end
 
 	timer.Create("cashflow_income", cvarIncomeTime:GetInt(), 1, giveIncome)
