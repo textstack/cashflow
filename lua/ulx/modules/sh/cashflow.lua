@@ -1,16 +1,10 @@
 local balance = ulx.command("Cashflow", "ulx balance", function(ply, target)
 	local items = ply == target and {} or { target }
 	for id, info in SortedPairsByMemberValue(Cashflow.TYPEINFO, "ORDER") do
-		print(id .. "x")
-		print(1)
 		if info.HIDE_FROM_BALANCE then continue end
-
-		print(2)
 
 		local amount = Cashflow.Data.GetCash(target, id)
 		if amount <= 0 and not info.SHOW_WHEN_ZERO then continue end
-
-		print(3)
 
 		table.insert(items, Cashflow.Util.PrettifyCash(id, amount, true))
 	end
