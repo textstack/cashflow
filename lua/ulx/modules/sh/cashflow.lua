@@ -173,7 +173,7 @@ local balanceid = ulx.command("Cashflow", "ulx balanceid", function(ply, targetI
 end, "!balanceid", true)
 balanceid:addParam({ type = ULib.cmds.StringArg, hint = "steamid" })
 balanceid:defaultAccess(ULib.ACCESS_ALL)
-balanceid:help("See how much money a potentially ofline player has.")
+balanceid:help("See how much money a potentially offline player has.")
 
 local function givemoneyFunc(ply, target, amount, typeStr)
 	local cashType = onlineMoneyCheck(ply, target, typeStr)
