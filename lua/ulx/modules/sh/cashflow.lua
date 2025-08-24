@@ -7,7 +7,7 @@ local function getCashType(ply, typeStr)
 
 	local found
 	for id, info in pairs(Cashflow.TYPEINFO) do
-		if not string.find(string.upper(info.NAME), toFind) then continue end
+		if not string.find(string.upper(info.NAME), typeStr) then continue end
 
 		if found then
 			ULib.tsayError(ply, "More than one type of currency matches your request!", true)
@@ -58,10 +58,11 @@ end
 local function onlineTransaction(ply, target, amount, typeTake, typeGive, _source)
 	if not Cashflow.Purchase(ply, typeTake, amount) then
 		ULib.tsayError(ply, string.format("You don't have enough %s!", Cashflow.TYPEINFO[typeTake].NAME), true)
-		return
+		return false
 	end
 
 	Cashflow.AddCash(target, typeGive, amount, _source)
+	return true
 end
 
 local function offlineTransaction(ply, targetID, amount, typeTake, typeGive, _source)
