@@ -154,7 +154,7 @@ hook.Add("player_activate", "Cashflow_Initialize", function(plyData)
 
 		for cashType, amount in pairs(cash) do
 			net.Start("cashflow")
-			net.WriteEntity(ply)
+			net.WriteEntity(ply1)
 			net.WriteUInt(cashType, Cashflow.NET_TYPE)
 			net.WriteUInt(amount, Cashflow.NET_AMOUNT)
 			net.Send(ply)
@@ -181,7 +181,7 @@ hook.Add("player_activate", "Cashflow_Initialize", function(plyData)
 
 			for cashType, amount in pairs(cash) do
 				net.Start("cashflow")
-				net.WriteEntity(ply)
+				net.WriteEntity(ply1)
 				net.WriteUInt(cashType, Cashflow.NET_TYPE)
 				net.WriteUInt(amount, Cashflow.NET_AMOUNT)
 				net.Send(ply)
