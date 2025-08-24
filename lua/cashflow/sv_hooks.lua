@@ -12,7 +12,7 @@ hook.Add("PlayerDeath", "Cashflow_Bounty", function(ply, _, attacker)
 	Cashflow.SetCash(ply, Cashflow.TYPES.BOUNTY, 0)
 
 	if ulx then
-		ulx.fancyLogAdmin(attacker, "#A received #s for killing #T.", Cashflow.PrettifyCash(Cashflow.DEFAULT_TYPE, bounty, true), ply)
+		ulx.fancyLogAdmin(attacker, player.GetAll(), "#A received #s for killing #T.", Cashflow.PrettifyCash(Cashflow.DEFAULT_TYPE, bounty, true), ply)
 	end
 end)
 
