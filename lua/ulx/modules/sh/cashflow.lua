@@ -1,6 +1,6 @@
 local function getCashType(ply, typeStr)
-	if type(typeStr) == "number" then return typeStr end
 	if not typeStr then return Cashflow.DEFAULT_TYPE end
+	if type(typeStr) == "number" then return typeStr end
 
 	typeStr = string.upper(string.Trim(typeStr))
 	if typeStr == "" or typeStr == "TYPE" then return Cashflow.DEFAULT_TYPE end
@@ -31,17 +31,22 @@ local function onlineMoneyCheck(ply, target, typeStr)
 		return
 	end
 
+	if not Cashflow.BOTS_CVAR:GetBool() and target:IsBot() then
+		ULib.tsayError(ply, "You can't target bots!")
+		return
+	end
+
 	return getCashType(ply, typeStr)
 end
 
 local function offlineMoneyCheck(ply, targetID, typeStr, onlineFunc, ...)
-	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < 5 then
+	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < Cashflow.OFFLINE_COMMAND_COOLDOWN then
 		ULib.tsayError(ply, "You're executing this command too fast!", true)
 		return
 	end
 	ply.Cashflow_OfflineQuery = CurTime()
 
-	if targetID ~= "BOT" and string.match(targetID, "^STEAM_%d:%d:%d+$") == nil then
+	if not Cashflow.IsValidSteamID(targetID) then
 		ULib.tsayError(ply, "Invalid steamid.")
 		return
 	end
@@ -83,6 +88,8 @@ local function offlineTransaction(ply, targetID, amount, typeTake, typeGive, _so
 end
 
 local function balanceFunc(ply, target)
+	if not onlineMoneyCheck(ply, target) then return end
+
 	local items = ply == target and {} or { target }
 	for id, info in SortedPairsByMemberValue(Cashflow.TYPEINFO, "ORDER") do
 		if info.HIDE_FROM_BALANCE then continue end
@@ -116,32 +123,10 @@ balance:defaultAccess(ULib.ACCESS_ALL)
 balance:help("See how much money a player has.")
 
 local balanceid = ulx.command("Cashflow", "ulx balanceid", function(ply, targetID)
-	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < 5 then
-		ULib.tsayError(ply, "You're executing this command too fast!", true)
-		return
-	end
-	ply.Cashflow_OfflineQuery = CurTime()
-
-	local target = player.GetBySteamID(targetID)
-	if IsValid(target) then
-		balanceFunc(ply, target)
-		return
-	end
+	if not offlineMoneyCheck(ply, targetID, nil, balanceFunc) then return end
 
 	Cashflow._FetchAllCash(targetID, function(data)
-		table.sort(data, function(a, b)
-			if not a.cashType or not b.cashType then return true end
-
-			local aType = Cashflow.TYPEINFO[tonumber(a.cashType)]
-			local bType = Cashflow.TYPEINFO[tonumber(b.cashType)]
-
-			if not aType or not bType then return true end
-
-			local aOrder = aType.ORDER or 0
-			local bOrder = bType.ORDER or 0
-
-			return aOrder < bOrder
-		end)
+		Cashflow.SortFetchResults(data)
 
 		local items = {}
 		for _, row in ipairs(data) do
@@ -194,7 +179,7 @@ end
 
 local givemoney = ulx.command("Cashflow", "ulx givemoney", givemoneyFunc, "!givemoney", true)
 givemoney:addParam({ type = ULib.cmds.PlayerArg, target = "!^", ULib.cmds.ignoreCanTarget })
-givemoney:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount" })
+givemoney:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount", ULib.cmds.round })
 givemoney:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
 givemoney:defaultAccess(ULib.ACCESS_ALL)
 givemoney:help("Give money to another player.")
@@ -219,7 +204,7 @@ local givemoneyid = ulx.command("Cashflow", "ulx givemoneyid", function(ply, tar
 	ulx.fancyLogAdmin(ply, { ply }, "You gave #s to #s.", amtStr, targetID)
 end, "!givemoneyid", true)
 givemoneyid:addParam({ type = ULib.cmds.StringArg, hint = "steamid" })
-givemoneyid:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount" })
+givemoneyid:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount", ULib.cmds.round })
 givemoneyid:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
 givemoneyid:defaultAccess(ULib.ACCESS_ALL)
 givemoneyid:help("Give money to another player who may be offline.")
@@ -235,7 +220,7 @@ end
 
 local bounty = ulx.command("Cashflow", "ulx bounty", bountyFunc, "!bounty", true)
 bounty:addParam({ type = ULib.cmds.PlayerArg, ULib.cmds.ignoreCanTarget })
-bounty:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount" })
+bounty:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount", ULib.cmds.round })
 bounty:defaultAccess(ULib.ACCESS_ALL)
 bounty:help("Place a bounty on a player.")
 
@@ -248,7 +233,7 @@ local bountyid = ulx.command("Cashflow", "ulx bountyid", function(ply, targetID,
 	ulx.fancyLogAdmin(ply, player.GetAll(), "#A placed #s on #s.", Cashflow.PrettifyCash(Cashflow.TYPES.BOUNTY, amount, true), targetID)
 end, "!bountyid", true)
 bountyid:addParam({ type = ULib.cmds.StringArg, hint = "steamid" })
-bountyid:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount" })
+bountyid:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "amount", ULib.cmds.round })
 bountyid:defaultAccess(ULib.ACCESS_ALL)
 bountyid:help("Place a bounty on a player who may be offline.")
 
@@ -262,7 +247,7 @@ end
 
 local setmoney = ulx.command("Cashflow", "ulx setmoney", setmoneyFunc, "!setmoney", true)
 setmoney:addParam({ type = ULib.cmds.PlayerArg })
-setmoney:addParam({ type = ULib.cmds.NumArg, min = 0, hint = "amount" })
+setmoney:addParam({ type = ULib.cmds.NumArg, min = 0, hint = "amount", ULib.cmds.round })
 setmoney:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
 setmoney:defaultAccess(ULib.ACCESS_SUPERADMIN)
 setmoney:help("Set the money of a player.")
@@ -280,7 +265,7 @@ local setmoneyid = ulx.command("Cashflow", "ulx setmoneyid", function(ply, targe
 	ulx.fancyLogAdmin(ply, "#A set the #s of #s.", Cashflow.TYPEINFO[cashType].NAME, targetID)
 end, "!setmoneyid", true)
 setmoneyid:addParam({ type = ULib.cmds.StringArg, hint = "steamid" })
-setmoneyid:addParam({ type = ULib.cmds.NumArg, min = 0, hint = "amount" })
+setmoneyid:addParam({ type = ULib.cmds.NumArg, min = 0, hint = "amount", ULib.cmds.round })
 setmoneyid:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
 setmoneyid:defaultAccess(ULib.ACCESS_SUPERADMIN)
 setmoneyid:help("Set the money of a player who may be offline.")
@@ -300,7 +285,7 @@ end
 
 local addmoney = ulx.command("Cashflow", "ulx addmoney", addmoneyFunc, "!addmoney", true)
 addmoney:addParam({ type = ULib.cmds.PlayerArg })
-addmoney:addParam({ type = ULib.cmds.NumArg, hint = "amount" })
+addmoney:addParam({ type = ULib.cmds.NumArg, hint = "amount", ULib.cmds.round })
 addmoney:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
 addmoney:defaultAccess(ULib.ACCESS_SUPERADMIN)
 addmoney:help("Add or subtract money of a player.")
@@ -322,7 +307,7 @@ local addmoneyid = ulx.command("Cashflow", "ulx addmoneyid", function(ply, targe
 	end
 end, "!addmoneyid", true)
 addmoneyid:addParam({ type = ULib.cmds.StringArg, hint = "steamid" })
-addmoneyid:addParam({ type = ULib.cmds.NumArg, hint = "amount" })
+addmoneyid:addParam({ type = ULib.cmds.NumArg, hint = "amount", ULib.cmds.round })
 addmoneyid:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
 addmoneyid:defaultAccess(ULib.ACCESS_SUPERADMIN)
 addmoneyid:help("Add or subtract money of a player who may be offline.")

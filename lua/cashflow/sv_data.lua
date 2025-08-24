@@ -4,9 +4,10 @@ sql.Query("CREATE TABLE IF NOT EXISTS cashflow ( id TEXT PRIMARY KEY ON CONFLICT
 
 --- set how much cash a player has
 function Cashflow.SetCash(ply, cashType, amount, _source, noPush)
-	if not IsValid(ply) or not ply:IsPlayer() then return end
-	if not Cashflow.TYPESLOOKUP[cashType] then return end
-	if not noPush and not ply.Cashflow_Initialized then return end
+	if not IsValid(ply) or not ply:IsPlayer() then return false end
+	if not Cashflow.TYPESLOOKUP[cashType] then return false end
+	if not noPush and not ply.Cashflow_Initialized then return false end
+	if not noPush and not Cashflow.BOTS_CVAR:GetBool() and ply:IsBot() then return false end
 
 	_source = _source or "direct"
 
@@ -18,7 +19,7 @@ function Cashflow.SetCash(ply, cashType, amount, _source, noPush)
 	amount = math.floor(math.Clamp(amount, 0, Cashflow.MAX_AMOUNT))
 
 	ply.Cash = ply.Cash or {}
-	if ply.Cash[cashType] == amount then return end
+	if ply.Cash[cashType] == amount then return true end
 	ply.Cash[cashType] = amount
 
 	net.Start("cashflow")
@@ -27,9 +28,10 @@ function Cashflow.SetCash(ply, cashType, amount, _source, noPush)
 	net.WriteUInt(amount, Cashflow.NET_AMOUNT)
 	net.Broadcast()
 
-	if noPush then return end
+	if noPush then return true end
 
 	Cashflow._PushCash(ply:SteamID(), cashType, amount)
+	return true
 end
 
 --- set the cash of an offline player
@@ -43,6 +45,7 @@ function Cashflow.SetCashOffline(steamID, cashType, amount, _source)
 	end
 
 	if not Cashflow.TYPESLOOKUP[cashType] then return false, "Not a valid currency type!" end
+	if not Cashflow.IsValidSteamID(steamID) then return false, "Invalid steamid." end
 
 	local q = sql.QueryValue(string.format("SELECT amount FROM cashflow WHERE steamID = %s LIMIT 1;", sql.SQLStr(steamID)))
 	if not q then return false, "This player needs to be on our database first!" end
@@ -64,7 +67,7 @@ end
 --- add cash to a player
 function Cashflow.AddCash(ply, cashType, amount, _source)
 	_source = _source or "direct_add"
-	Cashflow.SetCash(ply, cashType, Cashflow.GetCash(ply, cashType) + amount, _source)
+	return Cashflow.SetCash(ply, cashType, Cashflow.GetCash(ply, cashType) + amount, _source)
 end
 
 --- add cash to an offline player
@@ -78,6 +81,7 @@ function Cashflow.AddCashOffline(steamID, cashType, amount, _source)
 	end
 
 	if not Cashflow.TYPESLOOKUP[cashType] then return false, "Not a valid currency type!" end
+	if not Cashflow.IsValidSteamID(steamID) then return false, "Invalid steamid." end
 
 	local curCash = sql.QueryValue(string.format("SELECT amount FROM cashflow WHERE id = %s LIMIT 1;", sql.SQLStr(steamID .. "_" .. cashType)))
 	if not curCash then
@@ -106,8 +110,7 @@ function Cashflow.Purchase(ply, cashType, price)
 	local newCash = Cashflow.GetCash(ply, cashType) - price
 	if newCash < 0 then return false end
 
-	Cashflow.SetCash(ply, cashType, newCash, "purchase")
-	return true
+	return Cashflow.SetCash(ply, cashType, newCash, "purchase")
 end
 
 --- get all of a player's cash info from the database

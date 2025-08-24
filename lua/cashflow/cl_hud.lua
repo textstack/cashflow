@@ -30,6 +30,7 @@ hook.Add("HUDPaint", "Cashflow_HUD", function()
 	if not trace.Hit then return end
 	if not trace.HitNonWorld then return end
 	if not trace.Entity:IsPlayer() then return end
+	if not Cashflow.BOTS_CVAR:GetBool() and trace.Entity:IsBot() then return end
 
 	local text = trace.Entity:Nick()
 	local font = "TargetIDSmall"
