@@ -173,8 +173,8 @@ local function givemoneyFunc(ply, target, amount, typeStr)
 	if not onlineTransaction(ply, target, amount, cashType, cashType, "givemoney") then return end
 
 	local amtStr = Cashflow.PrettifyCash(cashType, amount, true)
-	ulx.fancyLogAdmin(target, { target }, "You received #s from #T.", amtStr, ply)
-	ulx.fancyLogAdmin(ply, { ply }, "You gave #s to #T.", amtStr, target)
+	ulx.fancyLogAdmin(target, { target }, "#A received #s from #T.", amtStr, ply)
+	ulx.fancyLogAdmin(ply, { ply }, "#A gave #s to #T.", amtStr, target)
 end
 
 local givemoney = ulx.command("Cashflow", "ulx givemoney", givemoneyFunc, "!givemoney", true)
