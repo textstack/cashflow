@@ -90,7 +90,7 @@ end
 local function balanceFunc(ply, target)
 	if not onlineMoneyCheck(ply, target) then return end
 
-	local items = ply == target and {} or { target }
+	local items = {}
 	for id, info in SortedPairsByMemberValue(Cashflow.TYPEINFO, "ORDER") do
 		if info.HIDE_FROM_BALANCE then continue end
 
@@ -100,21 +100,21 @@ local function balanceFunc(ply, target)
 		table.insert(items, Cashflow.PrettifyCash(id, amount, true))
 	end
 
-	local you = ply == target and "You have" or "#T has"
-	local itemCount = ply == target and #items or #items - 1
+	local have = ply == target and "have" or "has"
+	local itemCount = #items
 
 	local str
 	if itemCount == 0 then
-		str = string.format("%s nothing.", you)
+		str = string.format("#T %s nothing.", have)
 	elseif itemCount == 1 then
-		str = string.format("%s #s.", you)
+		str = string.format("#T %s #s.", have)
 	elseif itemCount == 2 then
-		str = string.format("%s #s and #s.", you)
+		str = string.format("#T %s #s and #s.", have)
 	else
-		str = string.format("%s %sand #s.", you, string.rep("#s, ", itemCount - 1))
+		str = string.format("#T %s %sand #s.", have, string.rep("#s, ", itemCount - 1))
 	end
 
-	ulx.fancyLogAdmin(ply, { ply }, str, unpack(items))
+	ulx.fancyLogAdmin(ply, { ply }, str, target, unpack(items))
 end
 
 local balance = ulx.command("Cashflow", "ulx balance", balanceFunc, "!balance", true)
