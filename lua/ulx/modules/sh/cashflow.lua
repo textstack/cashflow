@@ -312,7 +312,7 @@ addmoneyid:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optio
 addmoneyid:defaultAccess(ULib.ACCESS_SUPERADMIN)
 addmoneyid:help("Add or subtract money of a player who may be offline.")
 
-local pageAmount = 10
+local pageAmount = 20
 
 local bountylist = ulx.command("Cashflow", "ulx bountylist", function(ply, page)
 	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < Cashflow.OFFLINE_COMMAND_COOLDOWN then
@@ -322,22 +322,22 @@ local bountylist = ulx.command("Cashflow", "ulx bountylist", function(ply, page)
 	ply.Cashflow_OfflineQuery = CurTime()
 
 	local count = sql.QueryValue(string.format("SELECT COUNT() from cashflow WHERE cashType = %s AND amount > 0;", Cashflow.TYPES.BOUNTY))
-	if not count or count == 0 then
+	if not count or count == "0" then
 		ulx.fancyLogAdmin(ply, { ply }, "#sThere are no bounties on the server.", "")
 		return
 	end
 
-	local pageCount = math.ceil(count / pageAmount)
+	local pageCount = math.ceil(tonumber(count) / pageAmount)
+	page = math.min(page, pageCount)
 
 	local entries = sql.Query(string.format("SELECT * FROM cashflow WHERE cashType = %s AND amount > 0 ORDER BY amount DESC LIMIT %s OFFSET %s;", Cashflow.TYPES.BOUNTY, pageAmount, pageAmount * (page - 1)))
 	if not entries or table.IsEmpty(entries) then
-		ulx.fancyLogAdmin(ply, { ply }, string.format("#s---------- PAGE %s/%s ----------\n(empty)", page, pageCount), "")
+		ULib.tsayError(ply, "This page is empty!", true)
 		return
 	end
 
 	local ulibQuery = {}
 	for _, row in ipairs(entries) do
-		PrintTable(row)
 		table.insert(ulibQuery, sql.SQLStr(row.steamID))
 	end
 	ulibQuery = table.concat(ulibQuery, ", ")
