@@ -311,3 +311,68 @@ addmoneyid:addParam({ type = ULib.cmds.NumArg, hint = "amount", ULib.cmds.round 
 addmoneyid:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
 addmoneyid:defaultAccess(ULib.ACCESS_SUPERADMIN)
 addmoneyid:help("Add or subtract money of a player who may be offline.")
+
+local pageAmount = 20
+
+local baltop = ulx.command("Cashflow", "ulx baltop", function(ply, page, typeStr)
+	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < Cashflow.OFFLINE_COMMAND_COOLDOWN then
+		ULib.tsayError(ply, "You're executing this command too fast!", true)
+		return
+	end
+	ply.Cashflow_OfflineQuery = CurTime()
+
+	local cashType = getCashType(ply, typeStr)
+	if not cashType then return end
+
+	local count = sql.QueryValue(string.format("SELECT COUNT() from cashflow WHERE cashType = %s AND amount > 0;", cashType))
+	if not count or count == "0" then
+		ulx.fancyLogAdmin(ply, { ply }, "#sNobody on record has that.", "")
+		return
+	end
+
+	local pageCount = math.ceil(tonumber(count) / pageAmount)
+	page = math.min(page, pageCount)
+	local offset = pageAmount * (page - 1)
+
+	local entries = sql.Query(string.format("SELECT * FROM cashflow WHERE cashType = %s AND amount > 0 ORDER BY amount DESC LIMIT %s OFFSET %s;", cashType, pageAmount, offset))
+	if not entries or table.IsEmpty(entries) then
+		ULib.tsayError(ply, "This page is empty!", true)
+		return
+	end
+
+	local ulibQuery = {}
+	for _, row in ipairs(entries) do
+		table.insert(ulibQuery, sql.SQLStr(row.steamID))
+	end
+	ulibQuery = table.concat(ulibQuery, ", ")
+
+	local names = {}
+	local nameEntries = sql.Query(string.format("SELECT * FROM ulib_users WHERE steamid IN ( %s );", ulibQuery))
+	if nameEntries then
+		for _, row in ipairs(nameEntries) do
+			if not row.name then continue end
+			names[row.steamid] = row.name
+		end
+	end
+
+	local msg = { string.format("---------- PAGE %s/%s ----------", page, pageCount) }
+	local elems = {}
+	for i, row in ipairs(entries) do
+		local name = names[row.steamID]
+		if name then
+			table.insert(msg, string.format("%s. %s (%s): #s", i + offset, name, row.steamID))
+		else
+			table.insert(msg, string.format("%s. %s: #s", i + offset, row.steamID))
+		end
+
+		local amount = tonumber(row.amount)
+		table.insert(elems, Cashflow.PrettifyCash(cashType, amount))
+	end
+
+	msg = table.concat(msg, "\n")
+	ulx.fancyLogAdmin(ply, { ply }, msg, unpack(elems))
+end, "!baltop", true)
+baltop:addParam({ type = ULib.cmds.NumArg, min = 1, default = 1, hint = "page", ULib.cmds.round, ULib.cmds.optional})
+baltop:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
+baltop:defaultAccess(ULib.ACCESS_ALL)
+baltop:help("Get a list of the top players for a currency type.")
