@@ -311,3 +311,53 @@ addmoneyid:addParam({ type = ULib.cmds.NumArg, hint = "amount", ULib.cmds.round 
 addmoneyid:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
 addmoneyid:defaultAccess(ULib.ACCESS_SUPERADMIN)
 addmoneyid:help("Add or subtract money of a player who may be offline.")
+
+local bountylist = ulx.command("Cashflow", "ulx bountylist", function(ply, page)
+	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < Cashflow.OFFLINE_COMMAND_COOLDOWN then
+		ULib.tsayError(ply, "You're executing this command too fast!", true)
+		return
+	end
+	ply.Cashflow_OfflineQuery = CurTime()
+
+	local entries = sql.Query(string.format("SELECT * FROM cashflow WHERE cashType = %s AND amount > 0 ORDER BY amount DESC LIMIT 10 OFFSET %s;", Cashflow.TYPES.BOUNTY, 10 * (page - 1)))
+	if not entries or table.IsEmpty(entries) then
+		ulx.fancyLogAdmin(ply, { ply }, "There are no bounties on the server.")
+		return
+	end
+
+	local ulibQuery = {}
+	for _, row in ipairs(entries) do
+		PrintTable(row)
+		table.insert(ulibQuery, sql.SQLStr(row.steamID))
+	end
+	ulibQuery = table.concat(ulibQuery, ", ")
+
+	local names = {}
+	local nameEntries = sql.Query(string.format("SELECT * FROM ulib_users WHERE steamid IN ( %s );", ulibQuery))
+	if nameEntries then
+		for _, row in ipairs(nameEntries) do
+			if not row.name then continue end
+			names[row.steamid] = row.name
+		end
+	end
+
+	local msg = {}
+	local elems = {}
+	for _, row in ipairs(entries) do
+		local name = names[row.steamID]
+		if name then
+			table.insert(msg, string.format("%s (%s): #s", name, row.steamID))
+		else
+			table.insert(msg, string.format("%s: #s", row.steamID))
+		end
+
+		local amount = tonumber(row.amount)
+		table.insert(elems, Cashflow.PrettifyCash(Cashflow.TYPES.BOUNTY, amount))
+	end
+
+	msg = table.concat(msg, "\n")
+	ulx.fancyLogAdmin(ply, { ply }, msg, unpack(elems))
+end, "!bountylist", true)
+bountylist:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "page", ULib.cmds.round, ULib.cmds.optional})
+bountylist:defaultAccess(ULib.ACCESS_ALL)
+bountylist:help("Get a list of the top 50 highest bounties on record.")
