@@ -314,23 +314,27 @@ addmoneyid:help("Add or subtract money of a player who may be offline.")
 
 local pageAmount = 20
 
-local bountylist = ulx.command("Cashflow", "ulx bountylist", function(ply, page)
+local baltop = ulx.command("Cashflow", "ulx baltop", function(ply, page, typeStr)
 	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < Cashflow.OFFLINE_COMMAND_COOLDOWN then
 		ULib.tsayError(ply, "You're executing this command too fast!", true)
 		return
 	end
 	ply.Cashflow_OfflineQuery = CurTime()
 
-	local count = sql.QueryValue(string.format("SELECT COUNT() from cashflow WHERE cashType = %s AND amount > 0;", Cashflow.TYPES.BOUNTY))
+	local cashType = getCashType(ply, typeStr)
+	if not cashType then return end
+
+	local count = sql.QueryValue(string.format("SELECT COUNT() from cashflow WHERE cashType = %s AND amount > 0;", cashType))
 	if not count or count == "0" then
-		ulx.fancyLogAdmin(ply, { ply }, "#sThere are no bounties on the server.", "")
+		ulx.fancyLogAdmin(ply, { ply }, "#sNobody on record has that.", "")
 		return
 	end
 
 	local pageCount = math.ceil(tonumber(count) / pageAmount)
 	page = math.min(page, pageCount)
+	local offset = pageAmount * (page - 1)
 
-	local entries = sql.Query(string.format("SELECT * FROM cashflow WHERE cashType = %s AND amount > 0 ORDER BY amount DESC LIMIT %s OFFSET %s;", Cashflow.TYPES.BOUNTY, pageAmount, pageAmount * (page - 1)))
+	local entries = sql.Query(string.format("SELECT * FROM cashflow WHERE cashType = %s AND amount > 0 ORDER BY amount DESC LIMIT %s OFFSET %s;", cashType, pageAmount, offset))
 	if not entries or table.IsEmpty(entries) then
 		ULib.tsayError(ply, "This page is empty!", true)
 		return
@@ -353,21 +357,22 @@ local bountylist = ulx.command("Cashflow", "ulx bountylist", function(ply, page)
 
 	local msg = { string.format("---------- PAGE %s/%s ----------", page, pageCount) }
 	local elems = {}
-	for _, row in ipairs(entries) do
+	for i, row in ipairs(entries) do
 		local name = names[row.steamID]
 		if name then
-			table.insert(msg, string.format("%s (%s): #s", name, row.steamID))
+			table.insert(msg, string.format("%s. %s (%s): #s", i + offset, name, row.steamID))
 		else
-			table.insert(msg, string.format("%s: #s", row.steamID))
+			table.insert(msg, string.format("%s. %s: #s", i + offset, row.steamID))
 		end
 
 		local amount = tonumber(row.amount)
-		table.insert(elems, Cashflow.PrettifyCash(Cashflow.TYPES.BOUNTY, amount))
+		table.insert(elems, Cashflow.PrettifyCash(cashType, amount))
 	end
 
 	msg = table.concat(msg, "\n")
 	ulx.fancyLogAdmin(ply, { ply }, msg, unpack(elems))
-end, "!bountylist", true)
-bountylist:addParam({ type = ULib.cmds.NumArg, min = 1, default = 1, hint = "page", ULib.cmds.round, ULib.cmds.optional})
-bountylist:defaultAccess(ULib.ACCESS_ALL)
-bountylist:help("Get a list of each bounty on record.")
+end, "!baltop", true)
+baltop:addParam({ type = ULib.cmds.NumArg, min = 1, default = 1, hint = "page", ULib.cmds.round, ULib.cmds.optional})
+baltop:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
+baltop:defaultAccess(ULib.ACCESS_ALL)
+baltop:help("Get a list of the top players for a currency type.")
