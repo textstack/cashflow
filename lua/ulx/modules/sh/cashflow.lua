@@ -312,6 +312,8 @@ addmoneyid:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optio
 addmoneyid:defaultAccess(ULib.ACCESS_SUPERADMIN)
 addmoneyid:help("Add or subtract money of a player who may be offline.")
 
+local pageAmount = 10
+
 local bountylist = ulx.command("Cashflow", "ulx bountylist", function(ply, page)
 	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < Cashflow.OFFLINE_COMMAND_COOLDOWN then
 		ULib.tsayError(ply, "You're executing this command too fast!", true)
@@ -319,9 +321,17 @@ local bountylist = ulx.command("Cashflow", "ulx bountylist", function(ply, page)
 	end
 	ply.Cashflow_OfflineQuery = CurTime()
 
-	local entries = sql.Query(string.format("SELECT * FROM cashflow WHERE cashType = %s AND amount > 0 ORDER BY amount DESC LIMIT 10 OFFSET %s;", Cashflow.TYPES.BOUNTY, 10 * (page - 1)))
+	local count = sql.QueryValue(string.format("SELECT COUNT() from cashflow WHERE cashType = %s AND amount > 0;", Cashflow.TYPES.BOUNTY))
+	if not count or count == 0 then
+		ulx.fancyLogAdmin(ply, { ply }, "#sThere are no bounties on the server.", "")
+		return
+	end
+
+	local pageCount = math.ceil(count / pageAmount)
+
+	local entries = sql.Query(string.format("SELECT * FROM cashflow WHERE cashType = %s AND amount > 0 ORDER BY amount DESC LIMIT %s OFFSET %s;", Cashflow.TYPES.BOUNTY, pageAmount, pageAmount * (page - 1)))
 	if not entries or table.IsEmpty(entries) then
-		ulx.fancyLogAdmin(ply, { ply }, "There are no bounties on the server.")
+		ulx.fancyLogAdmin(ply, { ply }, string.format("#s---------- PAGE %s/%s ----------\n(empty)", page, pageCount), "")
 		return
 	end
 
@@ -341,7 +351,7 @@ local bountylist = ulx.command("Cashflow", "ulx bountylist", function(ply, page)
 		end
 	end
 
-	local msg = {}
+	local msg = { string.format("---------- PAGE %s/%s ----------", page, pageCount) }
 	local elems = {}
 	for _, row in ipairs(entries) do
 		local name = names[row.steamID]
@@ -358,6 +368,6 @@ local bountylist = ulx.command("Cashflow", "ulx bountylist", function(ply, page)
 	msg = table.concat(msg, "\n")
 	ulx.fancyLogAdmin(ply, { ply }, msg, unpack(elems))
 end, "!bountylist", true)
-bountylist:addParam({ type = ULib.cmds.NumArg, min = 1, hint = "page", ULib.cmds.round, ULib.cmds.optional})
+bountylist:addParam({ type = ULib.cmds.NumArg, min = 1, default = 1, hint = "page", ULib.cmds.round, ULib.cmds.optional})
 bountylist:defaultAccess(ULib.ACCESS_ALL)
-bountylist:help("Get a list of the top 50 highest bounties on record.")
+bountylist:help("Get a list of each bounty on record.")
