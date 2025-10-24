@@ -312,7 +312,7 @@ addmoneyid:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optio
 addmoneyid:defaultAccess(ULib.ACCESS_SUPERADMIN)
 addmoneyid:help("Add or subtract money of a player who may be offline.")
 
-local pageAmount = 20
+local pageAmount = 10
 
 local baltop = ulx.command("Cashflow", "ulx baltop", function(ply, page, typeStr)
 	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < Cashflow.OFFLINE_COMMAND_COOLDOWN then
