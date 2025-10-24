@@ -23,8 +23,8 @@ return function(instance)
 	-- @name builtins_library.CASHFLOW_TYPE
 	-- @class table
 	-- @field CASH Generic money
-	-- @field BOUNTY Money to be awarded a player's killer, shows on targetID
-	-- @field STARS Secondary money, shows on targetID
+	-- @field BOUNTY Money to be awarded to a player's killer, shows on targetID
+	-- @field STARS Special currency that auto-transfers to a player's victims, shows on targetID
 	-- @field DEFAULT The default cash type
 	env.CASHFLOW_TYPE = {
 		CASH = Cashflow.TYPES.CASH,
