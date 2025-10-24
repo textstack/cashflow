@@ -8,8 +8,8 @@ hook.Add("PlayerDeath", "Cashflow_Bounty", function(ply, _, attacker)
 	local bounty = Cashflow.GetCash(ply, Cashflow.TYPES.BOUNTY)
 	if bounty <= 0 then return end
 
-	Cashflow.AddCash(attacker, Cashflow.DEFAULT_TYPE, bounty)
-	Cashflow.SetCash(ply, Cashflow.TYPES.BOUNTY, 0)
+	Cashflow.AddCash(attacker, Cashflow.DEFAULT_TYPE, bounty, "bounty_claim")
+	Cashflow.SetCash(ply, Cashflow.TYPES.BOUNTY, 0, "bounty_claim")
 
 	if ulx then
 		ulx.fancyLogAdmin(attacker, player.GetAll(), "#A received #s for killing #T.", Cashflow.PrettifyCash(Cashflow.DEFAULT_TYPE, bounty, true), ply)

@@ -37,7 +37,7 @@ end
 --- set the cash of an offline player
 -- warning! requires an sql query every time you use it
 -- returns whether operation was successful and a potential error message
-function Cashflow.SetCashOffline(steamID, cashType, amount, _source)
+function Cashflow.OfflineSetCash(steamID, cashType, amount, _source)
 	local ply = player.GetBySteamID(steamID)
 	if IsValid(ply) then
 		Cashflow.SetCash(ply, cashType, amount, _source)
@@ -52,7 +52,7 @@ function Cashflow.SetCashOffline(steamID, cashType, amount, _source)
 
 	_source = _source or "direct"
 
-	local result = hook.Run("Cashflow_SetCashOffline", steamID, cashType, amount, _source)
+	local result = hook.Run("Cashflow_OfflineSetCash", steamID, cashType, amount, _source)
 	if type(result) == "number" then
 		amount = result
 	end
@@ -94,7 +94,7 @@ function Cashflow.AddCashOffline(steamID, cashType, amount, _source)
 	amount = curCash + amount
 	_source = _source or "direct_add"
 
-	local result = hook.Run("Cashflow_SetCashOffline", steamID, cashType, amount, _source)
+	local result = hook.Run("Cashflow_OfflineSetCash", steamID, cashType, amount, _source)
 	if type(result) == "number" then
 		amount = result
 	end
@@ -106,11 +106,11 @@ function Cashflow.AddCashOffline(steamID, cashType, amount, _source)
 end
 
 --- make a purchase and return whether the purchase was successful
-function Cashflow.Purchase(ply, cashType, price)
+function Cashflow.Purchase(ply, cashType, price, _source)
 	local newCash = Cashflow.GetCash(ply, cashType) - price
 	if newCash < 0 then return false end
 
-	return Cashflow.SetCash(ply, cashType, newCash, "purchase")
+	return Cashflow.SetCash(ply, cashType, newCash, _source or "purchase")
 end
 
 --- get all of a player's cash info from the database

@@ -67,6 +67,8 @@ local function onlineTransaction(ply, target, amount, typeTake, typeGive, _sourc
 	end
 
 	Cashflow.AddCash(target, typeGive, amount, _source)
+	hook.Run("Cashflow_Transaction", ply, target, amount, typeTake, typeGive, _source)
+
 	return true
 end
 
@@ -84,6 +86,8 @@ local function offlineTransaction(ply, targetID, amount, typeTake, typeGive, _so
 	end
 
 	Cashflow.SetCash(ply, typeTake, newCash, "purchase")
+	hook.Run("Cashflow_OfflineTransaction", ply, targetID, amount, typeTake, typeGive, _source)
+
 	return true
 end
 
@@ -256,7 +260,7 @@ local setmoneyid = ulx.command("Cashflow", "ulx setmoneyid", function(ply, targe
 	local cashType = offlineMoneyCheck(ply, targetID, typeStr, setmoneyFunc, amount, typeStr)
 	if not cashType then return end
 
-	local success, err = Cashflow.SetCashOffline(targetID, cashType, amount, "setmoney")
+	local success, err = Cashflow.OfflineSetCash(targetID, cashType, amount, "setmoney")
 	if not success then
 		ULib.tsayError(ply, err, true)
 		return false
@@ -313,7 +317,6 @@ addmoneyid:defaultAccess(ULib.ACCESS_SUPERADMIN)
 addmoneyid:help("Add or subtract money of a player who may be offline.")
 
 local pageAmount = 10
-
 local baltop = ulx.command("Cashflow", "ulx baltop", function(ply, page, typeStr)
 	if ply.Cashflow_OfflineQuery and CurTime() - ply.Cashflow_OfflineQuery < Cashflow.OFFLINE_COMMAND_COOLDOWN then
 		ULib.tsayError(ply, "You're executing this command too fast!", true)
@@ -376,3 +379,24 @@ baltop:addParam({ type = ULib.cmds.NumArg, min = 1, default = 1, hint = "page", 
 baltop:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
 baltop:defaultAccess(ULib.ACCESS_ALL)
 baltop:help("Get a list of the top players for a currency type.")
+
+local burnmoney = ulx.command("Cashflow", "ulx burnmoney", function(ply, amount, typeStr)
+	local cashType = onlineMoneyCheck(ply, ply, typeStr)
+	if not cashType then return end
+
+	if Cashflow.TYPEINFO[cashType].CANNOT_BE_GIVEN then
+		ULib.tsayError(ply, "You can't burn this!", true)
+		return
+	end
+
+	if not Cashflow.Purchase(ply, cashType, amount, "burn") then
+		ULib.tsayError(ply, string.format("You don't have enough %s!", Cashflow.TYPEINFO[typeTake].NAME), true)
+		return
+	end
+
+	ulx.fancyLogAdmin(ply, "#A burned #s.", Cashflow.PrettifyCash(cashType, amount, true))
+end, "!burnmoney", true)
+burnmoney:addParam({ type = ULib.cmds.NumArg, hint = "amount", ULib.cmds.round, min = 1 })
+burnmoney:addParam({ type = ULib.cmds.StringArg, hint = "type", ULib.cmds.optional, ULib.cmds.takeRestOfLine })
+burnmoney:defaultAccess(ULib.ACCESS_ALL)
+burnmoney:help("Convert money into ash.")
