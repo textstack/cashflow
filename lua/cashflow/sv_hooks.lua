@@ -1,5 +1,6 @@
 local cvarIncomeAmount = CreateConVar("cashflow_income_amount", 1, FCVAR_ARCHIVE, "Set how much money people get every pay period.")
 local cvarIncomeTime = CreateConVar("cashflow_income_time", 900, FCVAR_ARCHIVE, "Set the time between pay periods in seconds.")
+local cvarIncomeType = CreateConVar("cashflow_income_type", "default", FCVAR_ARCHIVE, "Set what type of currency to give as income.")
 
 local function bountyFunc(ply, attacker)
 	local bounty = Cashflow.GetCash(ply, Cashflow.TYPES.BOUNTY)
@@ -29,12 +30,22 @@ hook.Add("PlayerDeath", "Cashflow_Kiling", function(ply, _, attacker)
 	bountyFunc(ply, attacker)
 end)
 
+local incomeType = Cashflow.DEFAULT_TYPE
+hook.Add("PostGamemodeLoaded", "Cashflow_IncomeType", function()
+	local new = Cashflow.FindCashType(cvarIncomeType:GetString())
+	incomeType = new or Cashflow.DEFAULT_TYPE
+end)
+cvars.AddChangeCallback("cashflow_income_type", function(_, _, val)
+	local new = Cashflow.FindCashType(val)
+	incomeType = new or Cashflow.DEFAULT_TYPE
+end)
+
 local giveIncome
 function giveIncome()
 	local amount = cvarIncomeAmount:GetInt()
 
 	for _, ply in player.Iterator() do
-		Cashflow.AddCash(ply, Cashflow.DEFAULT_TYPE, amount, "income")
+		Cashflow.AddCash(ply, incomeType, amount, "income")
 	end
 
 	timer.Create("cashflow_income", cvarIncomeTime:GetInt(), 1, giveIncome)

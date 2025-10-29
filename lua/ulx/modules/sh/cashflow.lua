@@ -1,30 +1,3 @@
-local function getCashType(ply, typeStr)
-	if not typeStr then return Cashflow.DEFAULT_TYPE end
-	if type(typeStr) == "number" then return typeStr end
-
-	typeStr = string.upper(string.Trim(typeStr))
-	if typeStr == "" or typeStr == "TYPE" then return Cashflow.DEFAULT_TYPE end
-
-	local found
-	for id, info in pairs(Cashflow.TYPEINFO) do
-		if not string.find(string.upper(info.NAME), typeStr) then continue end
-
-		if found then
-			ULib.tsayError(ply, "More than one type of currency matches your request!", true)
-			return
-		end
-
-		found = id
-	end
-
-	if not found then
-		ULib.tsayError(ply, "No such currency exists!", true)
-		return
-	end
-
-	return found
-end
-
 local function onlineMoneyCheck(ply, target, typeStr)
 	if not target.Cashflow_Initialized then
 		ULib.tsayError(ply, "This player hasn't initialized yet!", true)
@@ -36,7 +9,13 @@ local function onlineMoneyCheck(ply, target, typeStr)
 		return
 	end
 
-	return getCashType(ply, typeStr)
+	local cashType, err = Cashflow.FindCashType(typeStr)
+	if not cashType then
+		ULib.tsayError(ply, err, true)
+		return
+	end
+
+	return cashType
 end
 
 local function offlineMoneyCheck(ply, targetID, typeStr, onlineFunc, ...)
@@ -57,7 +36,13 @@ local function offlineMoneyCheck(ply, targetID, typeStr, onlineFunc, ...)
 		return
 	end
 
-	return getCashType(ply, typeStr)
+	local cashType, err = Cashflow.FindCashType(typeStr)
+	if not cashType then
+		ULib.tsayError(ply, err, true)
+		return
+	end
+
+	return cashType
 end
 
 local function onlineTransaction(ply, target, amount, typeTake, typeGive, _source)
@@ -324,8 +309,11 @@ local baltop = ulx.command("Cashflow", "ulx baltop", function(ply, page, typeStr
 	end
 	ply.Cashflow_OfflineQuery = CurTime()
 
-	local cashType = getCashType(ply, typeStr)
-	if not cashType then return end
+	local cashType, err = Cashflow.FindCashType(typeStr)
+	if not cashType then
+		ULib.tsayError(ply, err, true)
+		return
+	end
 
 	local count = sql.QueryValue(string.format("SELECT COUNT() from cashflow WHERE cashType = %s AND amount > 0;", cashType))
 	if not count or count == "0" then

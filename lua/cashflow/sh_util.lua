@@ -23,6 +23,33 @@ function Cashflow.GetCashStr(ply, cashType, isSubject)
 	return Cashflow.PrettifyCash(cashType, Cashflow.GetCash(ply, cashType), isSubject)
 end
 
+--- get a cashtype id from a string search
+-- gives an error if the search failed
+function Cashflow.FindCashType(typeStr)
+	if not typeStr then return Cashflow.DEFAULT_TYPE end
+	if type(typeStr) == "number" then return typeStr end
+
+	typeStr = string.upper(string.Trim(typeStr))
+	if typeStr == "" or typeStr == "TYPE" or typeStr == "DEFAULT" then return Cashflow.DEFAULT_TYPE end
+
+	local found
+	for id, info in pairs(Cashflow.TYPEINFO) do
+		if not string.find(string.upper(info.NAME), typeStr) then continue end
+
+		if found then
+			return nil, "More than one type of currency matches your request!"
+		end
+
+		found = id
+	end
+
+	if not found then
+		return nil, "No such currency exists!"
+	end
+
+	return found
+end
+
 --- returns if a steamid is valid or not
 function Cashflow.IsValidSteamID(steamID)
 	return (Cashflow.BOTS_CVAR:GetBool() and steamID == "BOT") or string.match(steamID, "^STEAM_%d:%d:%d+$") ~= nil
